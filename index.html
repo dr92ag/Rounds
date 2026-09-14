@@ -26,7 +26,7 @@
             <h2 class="text-xl font-black text-slate-900">شعبة الجراحة العصبية</h2>
             <p class="text-xs text-slate-500 mt-1 mb-6">نظام الجولة السريرية والتوثيق المتزامن</p>
 
-            <form id="loginForm" onsubmit="handleLogin(event)" class="space-y-4 text-right">
+            <form id="loginForm" class="space-y-4 text-right">
                 <div>
                     <label class="block text-xs font-bold text-slate-700 mb-1">البريد الإلكتروني المصرح</label>
                     <input type="email" id="loginEmail" required placeholder="doctor@hospital.com" class="w-full border border-slate-300 rounded-xl p-3 text-sm bg-slate-50 focus:bg-white focus:ring-2 focus:ring-blue-600 focus:outline-none" dir="ltr">
@@ -35,6 +35,248 @@
                     <label class="block text-xs font-bold text-slate-700 mb-1">كلمة المرور</label>
                     <input type="password" id="loginPassword" required placeholder="••••••••" class="w-full border border-slate-300 rounded-xl p-3 text-sm bg-slate-50 focus:bg-white focus:ring-2 focus:ring-blue-600 focus:outline-none" dir="ltr">
                 </div>
+                <div id="loginError" class="text-xs text-rose-600 font-bold hidden text-center bg-rose-50 p-2.5 rounded-xl border border-rose-200"></div>
+                <button type="submit" id="loginBtn" class="w-full py-3 bg-blue-600 hover:bg-blue-500 text-white font-bold rounded-xl shadow-lg shadow-blue-600/30 transition text-sm">
+                    تسجيل الدخول إلى الجولة
+                </button>
+            </form>
+            <div class="mt-6 pt-4 border-t border-slate-100 text-[11px] text-slate-400">
+                بيانات المرضى مشفرة ومقيدة بصلاحيات الكادر الطبي المصرح له فقط.
+            </div>
+        </div>
+    </div>
+
+    <!-- واجهة التطبيق الرئيسية -->
+    <div id="appContainer" class="hidden">
+        <!-- Header -->
+        <header class="bg-slate-900 text-white shadow-lg sticky top-0 z-30 no-print">
+            <div class="max-w-7xl mx-auto px-4 py-3 flex flex-wrap justify-between items-center gap-3">
+                <div class="flex items-center space-x-3 space-x-reverse">
+                    <div class="bg-blue-600 p-2 rounded-xl text-xl font-bold shadow-md shadow-blue-500/20">🧠</div>
+                    <div>
+                        <h1 class="text-lg sm:text-xl font-black tracking-wide">الجراحة العصبية - الجولة اليومية</h1>
+                        <p class="text-[11px] text-slate-400">إدارة المرضى المقيمين والتوثيق الطبي</p>
+                    </div>
+                </div>
+
+                <div class="flex items-center flex-wrap gap-2">
+                    <div id="syncIndicator" class="flex items-center gap-1.5 text-[11px] bg-slate-800 px-3 py-1.5 rounded-full border border-slate-700">
+                        <span class="w-2.5 h-2.5 rounded-full bg-amber-400 animate-pulse" id="syncDot"></span>
+                        <span id="syncText" class="text-slate-300">جارِ الاتصال...</span>
+                    </div>
+
+                    <button id="tabActiveBtn" class="px-3 py-1.5 rounded-lg text-xs sm:text-sm font-bold bg-blue-600 text-white transition">
+                        المقيمون (<span id="activeCount">0</span>)
+                    </button>
+                    <button id="tabArchiveBtn" class="px-3 py-1.5 rounded-lg text-xs sm:text-sm font-bold bg-slate-800 text-slate-300 hover:bg-slate-700 transition">
+                        الأرشيف (<span id="archiveCount">0</span>)
+                    </button>
+                    <button id="newPatientBtn" class="bg-emerald-600 hover:bg-emerald-500 text-white text-xs sm:text-sm font-bold px-3.5 py-1.5 rounded-lg shadow transition flex items-center gap-1">
+                        <span>+</span> مريض جديد
+                    </button>
+                    <button id="exportCsvBtn" class="bg-slate-800 hover:bg-slate-700 text-white text-xs sm:text-sm px-2.5 py-1.5 rounded-lg border border-slate-700 transition flex items-center gap-1" title="تصدير جدول الجولة إلى Excel">
+                        <span>📊</span> تصدير
+                    </button>
+                    <button onclick="window.print()" class="bg-slate-800 hover:bg-slate-700 text-white text-xs sm:text-sm px-2.5 py-1.5 rounded-lg border border-slate-700 transition flex items-center gap-1" title="طباعة">
+                        <span>🖨️</span> طباعة
+                    </button>
+                    <button id="logoutBtn" class="bg-rose-950/70 hover:bg-rose-900 text-rose-300 border border-rose-800 text-xs px-2.5 py-1.5 rounded-lg transition" title="تسجيل الخروج">
+                        خروج
+                    </button>
+                </div>
+            </div>
+        </header>
+
+        <!-- المحتوى الرئيسي -->
+        <main class="max-w-7xl mx-auto p-3 sm:p-6">
+            <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-3 mb-5 flex flex-wrap gap-3 items-center justify-between no-print">
+                <div class="flex-1 min-w-[260px]">
+                    <input type="text" id="searchInput" placeholder="بحث بالاسم، رقم الغرفة، الإضبارة، التشخيص، أو الشعبة المنقول منها..." class="w-full bg-slate-50 border border-slate-300 rounded-xl px-3.5 py-2 text-xs sm:text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none">
+                </div>
+                <div class="w-full sm:w-auto">
+                    <select id="filterCategory" class="w-full sm:w-auto bg-slate-50 border border-slate-300 rounded-xl px-3 py-2 text-xs sm:text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none">
+                        <option value="ALL">جميع التصنيفات السريرية</option>
+                        <option value="TBI">رضوض الدماغ والجمجمة</option>
+                        <option value="BRAIN_NON_TRAUMA">أمراض الدماغ غير الرضية والأورام</option>
+                        <option value="SPINE_TRAUMA">رضوض العمود الفقري والنخاع</option>
+                        <option value="SPINE_NON_TRAUMA">أمراض العمود الفقري غير الرضية والتنكسية</option>
+                    </select>
+                </div>
+            </div>
+
+            <div id="patientsGrid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5"></div>
+
+            <div id="emptyState" class="hidden text-center py-16 bg-white rounded-3xl border-2 border-dashed border-slate-200 mt-4">
+                <div class="text-5xl mb-3">🩺</div>
+                <h3 class="text-base font-bold text-slate-700">لا يوجد مرضى في هذه القائمة حالياً</h3>
+                <p class="text-xs text-slate-500 mt-1">اضغط على زر "مريض جديد" للبدء بتوثيق حالات الجولة السريرية.</p>
+            </div>
+        </main>
+    </div>
+
+    <!-- نافذة إضافة وتعديل بيانات المريض -->
+    <div id="patientModal" class="fixed inset-0 bg-slate-950/70 backdrop-blur-sm z-50 flex items-center justify-center hidden p-2 sm:p-4 overflow-y-auto">
+        <div class="bg-white rounded-3xl shadow-2xl w-full max-w-4xl max-h-[94vh] flex flex-col border border-slate-200">
+            <div class="px-5 py-4 border-b border-slate-200 flex justify-between items-center bg-slate-50 rounded-t-3xl">
+                <h3 id="modalTitle" class="text-base font-black text-slate-800 flex items-center gap-2">
+                    <span>📝</span> إضافة وتوثيق حالة مريض بالجولة
+                </h3>
+                <button type="button" id="closePatientModalBtn" class="text-slate-400 hover:text-slate-700 text-2xl font-bold">&times;</button>
+            </div>
+
+            <form id="patientForm" class="p-4 sm:p-6 overflow-y-auto space-y-6 flex-1 text-xs sm:text-sm">
+                <input type="hidden" id="patientDocId">
+
+                <!-- 1. التعريف ومصدر القبول والحساسية -->
+                <div class="border-b border-slate-200 pb-5">
+                    <h4 class="font-black text-blue-700 mb-3 flex items-center gap-1.5 text-xs sm:text-sm">
+                        <span>👤</span> 1. البيانات التعريفية ومصدر القبول
+                    </h4>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3 mb-3">
+                        <div>
+                            <label class="block font-semibold text-slate-600 mb-1">رقم الغرفة والسرير *</label>
+                            <input type="text" id="roomNo" required class="w-full border rounded-xl p-2 bg-slate-50 focus:bg-white" placeholder="مثال: 402 - A">
+                        </div>
+                        <div class="sm:col-span-2">
+                            <label class="block font-semibold text-slate-600 mb-1">اسم المريض الثلاثي *</label>
+                            <input type="text" id="patientName" required class="w-full border rounded-xl p-2 bg-slate-50 focus:bg-white">
+                        </div>
+                        <div>
+                            <label class="block font-semibold text-slate-600 mb-1">العمر *</label>
+                            <input type="number" id="age" required class="w-full border rounded-xl p-2 bg-slate-50 focus:bg-white">
+                        </div>
+                        <div>
+                            <label class="block font-semibold text-slate-600 mb-1">الجنس</label>
+                            <select id="gender" class="w-full border rounded-xl p-2 bg-slate-50">
+                                <option value="ذكر">ذكر</option>
+                                <option value="أنثى">أنثى</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block font-semibold text-slate-600 mb-1">مكان الإقامة / المحافظة</label>
+                            <input type="text" id="residence" class="w-full border rounded-xl p-2 bg-slate-50">
+                        </div>
+                        <div>
+                            <label class="block font-semibold text-slate-600 mb-1">رقم الإضبارة (MRN) *</label>
+                            <input type="text" id="fileNo" required class="w-full border rounded-xl p-2 bg-slate-50">
+                        </div>
+                        <div>
+                            <label class="block font-semibold text-slate-600 mb-1">تاريخ ووقت القبول بالشعبة *</label>
+                            <input type="datetime-local" id="admissionDate" required class="w-full border rounded-xl p-2 bg-slate-50">
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <div class="bg-rose-50/70 p-2.5 rounded-2xl border border-rose-200 flex items-center gap-2">
+                            <span class="text-rose-700 font-black text-xs">⚠️ سوابق حساسية:</span>
+                            <input type="text" id="allergies" placeholder="مثال: حساسية بنسلين، سلفا، أو لا توجد..." class="flex-1 border border-rose-200 rounded-lg p-1.5 text-xs bg-white focus:outline-none">
+                        </div>
+
+                        <div class="bg-blue-50/60 p-2.5 rounded-2xl border border-blue-200 flex items-center gap-3">
+                            <div class="flex items-center gap-1.5">
+                                <input type="checkbox" id="isTransferred" class="w-4 h-4 text-blue-600 rounded">
+                                <label for="isTransferred" class="font-bold text-blue-900 cursor-pointer text-xs">منقول من شعبة أخرى</label>
+                            </div>
+                            <div id="transferredBox" class="hidden flex-1">
+                                <input type="text" id="transferredFrom" placeholder="اسم الشعبة المنقول منها..." class="w-full border border-blue-200 rounded-lg p-1.5 text-xs bg-white">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 2. العلامات الحيوية العصبية ونزح المفجر -->
+                <div class="border-b border-slate-200 pb-5">
+                    <h4 class="font-black text-blue-700 mb-3 flex items-center gap-1.5 text-xs sm:text-sm">
+                        <span>📊</span> 2. المراقبة الحيوية العصبية ونزح المفجر (Daily Vitals & Drain)
+                    </h4>
+                    <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 bg-slate-50 p-3 rounded-2xl border border-slate-200">
+                        <div>
+                            <label class="block font-semibold text-slate-600 mb-1 text-xs">الضغط الشرياني (BP)</label>
+                            <input type="text" id="vitalBP" placeholder="مثال: 130/80 mmHg" class="w-full border rounded-lg p-1.5 text-xs bg-white">
+                        </div>
+                        <div>
+                            <label class="block font-semibold text-slate-600 mb-1 text-xs">النبض (Pulse)</label>
+                            <input type="text" id="vitalPulse" placeholder="مثال: 78 bpm" class="w-full border rounded-lg p-1.5 text-xs bg-white">
+                        </div>
+                        <div>
+                            <label class="block font-semibold text-slate-600 mb-1 text-xs">نزح المفجر (Drain ml/24h)</label>
+                            <input type="text" id="vitalDrain" placeholder="مثال: 50 ml" class="w-full border rounded-lg p-1.5 text-xs bg-white">
+                        </div>
+                        <div>
+                            <label class="block font-semibold text-slate-600 mb-1 text-xs">طبيعة مفرزات المفجر</label>
+                            <select id="vitalDrainType" class="w-full border rounded-lg p-1.5 text-xs bg-white">
+                                <option value="لا يوجد مفجر">لا يوجد مفجر</option>
+                                <option value="مدمى (Bloody)">مدمى (Bloody)</option>
+                                <option value="مصلي مدمى (Serosanguinous)">مصلي مدمى (Serosanguinous)</option>
+                                <option value="مصلي رائق (Serous)">مصلي رائق (Serous)</option>
+                                <option value="رائق CSF (سائل دماغي شوكي)">رائق CSF</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 3. التصنيف العصبي والتشخيص التخصصي -->
+                <div class="border-b border-slate-200 pb-5">
+                    <h4 class="font-black text-blue-700 mb-3 flex items-center gap-1.5 text-xs sm:text-sm">
+                        <span>🎯</span> 3. التصنيف العصبي والتشخيص التخصصي
+                    </h4>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-3">
+                        <div>
+                            <label class="block font-semibold text-slate-600 mb-1">المحور الرئيسي للتشخيص *</label>
+                            <select id="mainCategory" required class="w-full border rounded-xl p-2 font-bold bg-blue-50/60 border-blue-200">
+                                <option value="">-- اختر التصنيف العصبي الرئيسي --</option>
+                                <option value="TBI">رضوض الدماغ والجمجمة (Traumatic Brain Injury)</option>
+                                <option value="BRAIN_NON_TRAUMA">أمراض الدماغ غير الرضية والأورام (Non-Traumatic Brain)</option>
+                                <option value="SPINE_TRAUMA">رضوض العمود الفقري والنخاع الشوكي (Spinal Trauma & SCI)</option>
+                                <option value="SPINE_NON_TRAUMA">أمراض العمود الفقري غير الرضية والتنكسية (Spine Pathology)</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block font-semibold text-slate-600 mb-1">التشخيص النوعي الدقيق *</label>
+                            <select id="subCategory" class="w-full border rounded-xl p-2 bg-slate-50">
+                                <option value="">-- يرجى اختيار المحور الرئيسي أولاً --</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div id="dynamicSpecialtyFields" class="bg-slate-50 p-3.5 rounded-2xl border border-slate-200 space-y-3 hidden">
+                        <div class="font-bold text-slate-700">المعايير التخصصية ومقاييس التقييم:</div>
+                        <div id="dynamicFieldsContainer" class="grid grid-cols-1 sm:grid-cols-3 gap-3"></div>
+                    </div>
+
+                    <div class="mt-3">
+                        <label class="block font-semibold text-slate-600 mb-1">تفاصيل القصة المرضية والموجودات الشعاعية (CT / MRI)</label>
+                        <textarea id="diagnosisDetails" rows="2" class="w-full border rounded-xl p-2 bg-slate-50 focus:bg-white" placeholder="جهة الإصابة، التوضع التشريحي، درجة الانزياح، قياس الآفة..."></textarea>
+                    </div>
+                </div>
+
+                <!-- 4. اللزوم الدوائي مع عداد الأيام -->
+                <div class="border-b border-slate-200 pb-5">
+                    <div class="flex justify-between items-center mb-3">
+                        <h4 class="font-black text-blue-700 flex items-center gap-1.5 text-xs sm:text-sm">
+                            <span>💊</span> 4. اللزوم الدوائي التخصصي (مع عداد أيام العلاج)
+                        </h4>
+                        <button type="button" id="addMedRowBtn" class="bg-blue-600 hover:bg-blue-500 text-white px-3 py-1 rounded-lg font-bold text-xs shadow transition">
+                            + إضافة دواء
+                        </button>
+                    </div>
+                    <div id="medicationsList" class="space-y-2 mb-3"></div>
+                    <textarea id="medicationNotes" rows="2" class="w-full border rounded-xl p-2 bg-slate-50 text-xs" placeholder="تعليمات المحاليل الوريدية، تصحيح الشوارد، وجداول السحب التدريجي..."></textarea>
+                </div>
+
+                <!-- 5. الجراحة والباثولوجي والاستشارات -->
+                <div class="border-b border-slate-200 pb-5">
+                    <h4 class="font-black text-blue-700 mb-3 flex items-center gap-1.5 text-xs sm:text-sm">
+                        <span>🔪</span> 5. العمل الجراحي، التشريح المرضي، والاستشارات
+                    </h4>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 mb-4">
+                        <div>
+                            <label class="block font-semibold text-slate-600 mb-1">الجراح المشرف / القائم بالجراحة</label>
+                            <input type="text" id="surgeon" class="w-full border rounded-xl p-2 bg-slate-50" placeholder="اسم الجراح">
+                        </div>
+                        <div class="sm:col-span-2">
+                            <label class="block font-semibold text-slate-600 mb-1">موجز العمل الجراحي (Brief Operative Note)</label>
+                            <textarea id="operativeNote" rows="2" class="w-full border rounded-xl p-2 bg-slate-50" placeholder="المدخل الجراحي، كفاية الاستئصال (GTR/STR)،                 </div>
                 <div id="loginError" class="text-xs text-rose-600 font-bold hidden text-center bg-rose-50 p-2.5 rounded-xl border border-rose-200"></div>
                 <button type="submit" id="loginBtn" class="w-full py-3 bg-blue-600 hover:bg-blue-500 text-white font-bold rounded-xl shadow-lg shadow-blue-600/30 transition text-sm">
                     تسجيل الدخول إلى الجولة
