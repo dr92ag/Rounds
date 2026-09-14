@@ -1,0 +1,1254 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>شعبة الجراحة العصبية - الجولة اليومية</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800;900&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Tajawal', sans-serif; }
+        .line-through-task { text-decoration: line-through; color: #94a3b8; }
+        @media print {
+            .no-print { display: none !important; }
+            .print-full { width: 100% !important; box-shadow: none !important; border: 1px solid #cbd5e1 !important; page-break-inside: avoid; }
+            body { background-color: #ffffff !important; }
+        }
+    </style>
+</head>
+<body class="bg-slate-100 text-slate-800 min-h-screen">
+
+    <!-- شريط تشخيص وكشف الأخطاء اللحظي المدمج -->
+    <div id="diagnosticBanner" class="hidden fixed top-3 left-3 right-3 sm:left-auto sm:right-4 sm:max-w-md bg-rose-900 text-rose-50 p-4 rounded-2xl shadow-2xl border border-rose-700 z-[100] flex flex-col gap-2">
+        <div class="flex items-start justify-between gap-2">
+            <div class="flex items-center gap-1.5 font-bold text-xs">
+                <span>⚠️</span>
+                <span>تنبيه كاشف الأخطاء السريري:</span>
+            </div>
+            <button onclick="document.getElementById('diagnosticBanner').classList.add('hidden')" class="text-rose-300 hover:text-white font-black text-lg leading-none">&times;</button>
+        </div>
+        <div id="diagnosticMessage" class="text-xs font-mono bg-rose-950/70 p-2.5 rounded-xl border border-rose-800 break-words max-h-36 overflow-y-auto"></div>
+        <button onclick="navigator.clipboard.writeText(document.getElementById('diagnosticMessage').innerText); alert('تم نسخ تفاصيل الخطأ');" class="self-end text-[11px] bg-rose-800 hover:bg-rose-700 text-white font-bold px-3 py-1 rounded-lg">
+            نسخ نص الخطأ
+        </button>
+    </div>
+
+    <!-- شاشة تسجيل الدخول المعتمد -->
+    <div id="loginScreen" class="fixed inset-0 bg-slate-950/95 z-50 flex items-center justify-center p-4">
+        <div class="bg-white rounded-3xl shadow-2xl w-full max-w-md p-6 sm:p-8 border border-slate-200 text-center">
+            <div class="w-16 h-16 bg-blue-600 text-white rounded-2xl flex items-center justify-center text-3xl mx-auto mb-3 shadow-lg shadow-blue-500/30">🧠</div>
+            <h2 class="text-xl font-black text-slate-900">شعبة الجراحة العصبية</h2>
+            <p class="text-xs text-slate-500 mt-1 mb-6">نظام الجولة السريرية والتوثيق المتزامن</p>
+
+            <form id="loginForm" onsubmit="window.handleLoginSubmit(event)" class="space-y-4 text-right">
+                <div>
+                    <label class="block text-xs font-bold text-slate-700 mb-1">البريد الإلكتروني المصرح</label>
+                    <input type="email" id="loginEmail" required placeholder="doctor@hospital.com" class="w-full border border-slate-300 rounded-xl p-3 text-sm bg-slate-50 focus:bg-white focus:ring-2 focus:ring-blue-600 focus:outline-none" dir="ltr">
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-slate-700 mb-1">كلمة المرور</label>
+                    <input type="password" id="loginPassword" required placeholder="••••••••" class="w-full border border-slate-300 rounded-xl p-3 text-sm bg-slate-50 focus:bg-white focus:ring-2 focus:ring-blue-600 focus:outline-none" dir="ltr">
+                </div>
+                <div id="loginError" class="text-xs text-rose-600 font-bold hidden text-center bg-rose-50 p-2.5 rounded-xl border border-rose-200"></div>
+                <button type="submit" id="loginBtn" class="w-full py-3 bg-blue-600 hover:bg-blue-500 text-white font-bold rounded-xl shadow-lg shadow-blue-600/30 transition text-sm">
+                    تسجيل الدخول إلى الجولة
+                </button>
+            </form>
+            <div class="mt-6 pt-4 border-t border-slate-100 text-[11px] text-slate-400">
+                بيانات المرضى مشفرة ومقيدة بصلاحيات الكادر الطبي المصرح له فقط.
+            </div>
+        </div>
+    </div>
+
+    <!-- واجهة التطبيق الرئيسية -->
+    <div id="appContainer" class="hidden">
+        <!-- Header -->
+        <header class="bg-slate-900 text-white shadow-lg sticky top-0 z-30 no-print">
+            <div class="max-w-7xl mx-auto px-4 py-3 flex flex-wrap justify-between items-center gap-3">
+                <div class="flex items-center space-x-3 space-x-reverse">
+                    <div class="bg-blue-600 p-2 rounded-xl text-xl font-bold shadow-md shadow-blue-500/20">🧠</div>
+                    <div>
+                        <h1 class="text-lg sm:text-xl font-black tracking-wide">الجراحة العصبية - الجولة اليومية</h1>
+                        <p class="text-[11px] text-slate-400">إدارة المرضى المقيمين والتوثيق الطبي</p>
+                    </div>
+                </div>
+
+                <div class="flex items-center flex-wrap gap-2">
+                    <div id="syncIndicator" class="flex items-center gap-1.5 text-[11px] bg-slate-800 px-3 py-1.5 rounded-full border border-slate-700">
+                        <span class="w-2.5 h-2.5 rounded-full bg-amber-400 animate-pulse" id="syncDot"></span>
+                        <span id="syncText" class="text-slate-300">جارِ الاتصال...</span>
+                    </div>
+
+                    <button onclick="window.switchTab('active')" id="tabActiveBtn" class="px-3 py-1.5 rounded-lg text-xs sm:text-sm font-bold bg-blue-600 text-white transition">
+                        المقيمون (<span id="activeCount">0</span>)
+                    </button>
+                    <button onclick="window.switchTab('archive')" id="tabArchiveBtn" class="px-3 py-1.5 rounded-lg text-xs sm:text-sm font-bold bg-slate-800 text-slate-300 hover:bg-slate-700 transition">
+                        الأرشيف (<span id="archiveCount">0</span>)
+                    </button>
+                    <button onclick="window.openPatientModal()" class="bg-emerald-600 hover:bg-emerald-500 text-white text-xs sm:text-sm font-bold px-3.5 py-1.5 rounded-lg shadow transition flex items-center gap-1">
+                        <span>+</span> مريض جديد
+                    </button>
+                    <button onclick="window.exportWardToCSV()" class="bg-slate-800 hover:bg-slate-700 text-white text-xs sm:text-sm px-2.5 py-1.5 rounded-lg border border-slate-700 transition flex items-center gap-1" title="تصدير جدول الجولة إلى Excel">
+                        <span>📊</span> تصدير
+                    </button>
+                    <button onclick="window.print()" class="bg-slate-800 hover:bg-slate-700 text-white text-xs sm:text-sm px-2.5 py-1.5 rounded-lg border border-slate-700 transition flex items-center gap-1" title="طباعة">
+                        <span>🖨️</span> طباعة
+                    </button>
+                    <button onclick="window.handleLogoutAction()" class="bg-rose-950/70 hover:bg-rose-900 text-rose-300 border border-rose-800 text-xs px-2.5 py-1.5 rounded-lg transition" title="تسجيل الخروج">
+                        خروج
+                    </button>
+                </div>
+            </div>
+        </header>
+
+        <!-- المحتوى الرئيسي -->
+        <main class="max-w-7xl mx-auto p-3 sm:p-6">
+            <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-3 mb-5 flex flex-wrap gap-3 items-center justify-between no-print">
+                <div class="flex-1 min-w-[260px]">
+                    <input type="text" id="searchInput" oninput="window.renderPatients()" placeholder="بحث بالاسم، رقم الغرفة، الإضبارة، التشخيص، أو الشعبة المنقول منها..." class="w-full bg-slate-50 border border-slate-300 rounded-xl px-3.5 py-2 text-xs sm:text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none">
+                </div>
+                <div class="w-full sm:w-auto">
+                    <select id="filterCategory" onchange="window.renderPatients()" class="w-full sm:w-auto bg-slate-50 border border-slate-300 rounded-xl px-3 py-2 text-xs sm:text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none">
+                        <option value="ALL">جميع التصنيفات السريرية</option>
+                        <option value="TBI">رضوض الدماغ والجمجمة</option>
+                        <option value="BRAIN_NON_TRAUMA">أمراض الدماغ غير الرضية والأورام</option>
+                        <option value="SPINE_TRAUMA">رضوض العمود الفقري والنخاع</option>
+                        <option value="SPINE_NON_TRAUMA">أمراض العمود الفقري غير الرضية والتنكسية</option>
+                    </select>
+                </div>
+            </div>
+
+            <div id="patientsGrid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5"></div>
+
+            <div id="emptyState" class="hidden text-center py-16 bg-white rounded-3xl border-2 border-dashed border-slate-200 mt-4">
+                <div class="text-5xl mb-3">🩺</div>
+                <h3 class="text-base font-bold text-slate-700">لا يوجد مرضى في هذه القائمة حالياً</h3>
+                <p class="text-xs text-slate-500 mt-1">اضغط على زر "مريض جديد" للبدء بتوثيق حالات الجولة السريرية.</p>
+            </div>
+        </main>
+    </div>
+
+    <!-- نافذة إضافة وتعديل بيانات المريض -->
+    <div id="patientModal" class="fixed inset-0 bg-slate-950/70 backdrop-blur-sm z-50 flex items-center justify-center hidden p-2 sm:p-4 overflow-y-auto">
+        <div class="bg-white rounded-3xl shadow-2xl w-full max-w-4xl max-h-[94vh] flex flex-col border border-slate-200">
+            <div class="px-5 py-4 border-b border-slate-200 flex justify-between items-center bg-slate-50 rounded-t-3xl">
+                <h3 id="modalTitle" class="text-base font-black text-slate-800 flex items-center gap-2">
+                    <span>📝</span> إضافة وتوثيق حالة مريض بالجولة
+                </h3>
+                <button type="button" onclick="window.closePatientModal()" class="text-slate-400 hover:text-slate-700 text-2xl font-bold">&times;</button>
+            </div>
+
+            <form id="patientForm" onsubmit="window.savePatientForm(event)" class="p-4 sm:p-6 overflow-y-auto space-y-6 flex-1 text-xs sm:text-sm">
+                <input type="hidden" id="patientDocId">
+
+                <!-- 1. التعريف ومصدر القبول والحساسية -->
+                <div class="border-b border-slate-200 pb-5">
+                    <h4 class="font-black text-blue-700 mb-3 flex items-center gap-1.5 text-xs sm:text-sm">
+                        <span>👤</span> 1. البيانات التعريفية ومصدر القبول
+                    </h4>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3 mb-3">
+                        <div>
+                            <label class="block font-semibold text-slate-600 mb-1">رقم الغرفة والسرير *</label>
+                            <input type="text" id="roomNo" required class="w-full border rounded-xl p-2 bg-slate-50 focus:bg-white" placeholder="مثال: 402 - A">
+                        </div>
+                        <div class="sm:col-span-2">
+                            <label class="block font-semibold text-slate-600 mb-1">اسم المريض الثلاثي *</label>
+                            <input type="text" id="patientName" required class="w-full border rounded-xl p-2 bg-slate-50 focus:bg-white">
+                        </div>
+                        <div>
+                            <label class="block font-semibold text-slate-600 mb-1">العمر *</label>
+                            <input type="number" id="age" required class="w-full border rounded-xl p-2 bg-slate-50 focus:bg-white">
+                        </div>
+                        <div>
+                            <label class="block font-semibold text-slate-600 mb-1">الجنس</label>
+                            <select id="gender" class="w-full border rounded-xl p-2 bg-slate-50">
+                                <option value="ذكر">ذكر</option>
+                                <option value="أنثى">أنثى</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block font-semibold text-slate-600 mb-1">مكان الإقامة / المحافظة</label>
+                            <input type="text" id="residence" class="w-full border rounded-xl p-2 bg-slate-50">
+                        </div>
+                        <div>
+                            <label class="block font-semibold text-slate-600 mb-1">رقم الإضبارة (MRN) *</label>
+                            <input type="text" id="fileNo" required class="w-full border rounded-xl p-2 bg-slate-50">
+                        </div>
+                        <div>
+                            <label class="block font-semibold text-slate-600 mb-1">تاريخ ووقت القبول بالشعبة *</label>
+                            <input type="datetime-local" id="admissionDate" required class="w-full border rounded-xl p-2 bg-slate-50">
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <div class="bg-rose-50/70 p-2.5 rounded-2xl border border-rose-200 flex items-center gap-2">
+                            <span class="text-rose-700 font-black text-xs">⚠️ سوابق حساسية:</span>
+                            <input type="text" id="allergies" placeholder="مثال: حساسية بنسلين، سلفا، أو لا توجد..." class="flex-1 border border-rose-200 rounded-lg p-1.5 text-xs bg-white focus:outline-none">
+                        </div>
+
+                        <div class="bg-blue-50/60 p-2.5 rounded-2xl border border-blue-200 flex items-center gap-3">
+                            <div class="flex items-center gap-1.5">
+                                <input type="checkbox" id="isTransferred" onchange="window.toggleTransferredDetails()" class="w-4 h-4 text-blue-600 rounded">
+                                <label for="isTransferred" class="font-bold text-blue-900 cursor-pointer text-xs">منقول من شعبة أخرى</label>
+                            </div>
+                            <div id="transferredBox" class="hidden flex-1">
+                                <input type="text" id="transferredFrom" placeholder="اسم الشعبة المنقول منها..." class="w-full border border-blue-200 rounded-lg p-1.5 text-xs bg-white">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 2. العلامات الحيوية العصبية ونزح المفجر -->
+                <div class="border-b border-slate-200 pb-5">
+                    <h4 class="font-black text-blue-700 mb-3 flex items-center gap-1.5 text-xs sm:text-sm">
+                        <span>📊</span> 2. المراقبة الحيوية العصبية ونزح المفجر (Daily Vitals & Drain)
+                    </h4>
+                    <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 bg-slate-50 p-3 rounded-2xl border border-slate-200">
+                        <div>
+                            <label class="block font-semibold text-slate-600 mb-1 text-xs">الضغط الشرياني (BP)</label>
+                            <input type="text" id="vitalBP" placeholder="مثال: 130/80 mmHg" class="w-full border rounded-lg p-1.5 text-xs bg-white">
+                        </div>
+                        <div>
+                            <label class="block font-semibold text-slate-600 mb-1 text-xs">النبض (Pulse)</label>
+                            <input type="text" id="vitalPulse" placeholder="مثال: 78 bpm" class="w-full border rounded-lg p-1.5 text-xs bg-white">
+                        </div>
+                        <div>
+                            <label class="block font-semibold text-slate-600 mb-1 text-xs">نزح المفجر (Drain ml/24h)</label>
+                            <input type="text" id="vitalDrain" placeholder="مثال: 50 ml" class="w-full border rounded-lg p-1.5 text-xs bg-white">
+                        </div>
+                        <div>
+                            <label class="block font-semibold text-slate-600 mb-1 text-xs">طبيعة مفرزات المفجر</label>
+                            <select id="vitalDrainType" class="w-full border rounded-lg p-1.5 text-xs bg-white">
+                                <option value="لا يوجد مفجر">لا يوجد مفجر</option>
+                                <option value="مدمى (Bloody)">مدمى (Bloody)</option>
+                                <option value="مصلي مدمى (Serosanguinous)">مصلي مدمى (Serosanguinous)</option>
+                                <option value="مصلي رائق (Serous)">مصلي رائق (Serous)</option>
+                                <option value="رائق CSF (سائل دماغي شوكي)">رائق CSF</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 3. التصنيف العصبي والتشخيص التخصصي -->
+                <div class="border-b border-slate-200 pb-5">
+                    <h4 class="font-black text-blue-700 mb-3 flex items-center gap-1.5 text-xs sm:text-sm">
+                        <span>🎯</span> 3. التصنيف العصبي والتشخيص التخصصي
+                    </h4>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-3">
+                        <div>
+                            <label class="block font-semibold text-slate-600 mb-1">المحور الرئيسي للتشخيص *</label>
+                            <select id="mainCategory" onchange="window.handleCategoryChange()" required class="w-full border rounded-xl p-2 font-bold bg-blue-50/60 border-blue-200">
+                                <option value="">-- اختر التصنيف العصبي الرئيسي --</option>
+                                <option value="TBI">رضوض الدماغ والجمجمة (Traumatic Brain Injury)</option>
+                                <option value="BRAIN_NON_TRAUMA">أمراض الدماغ غير الرضية والأورام (Non-Traumatic Brain)</option>
+                                <option value="SPINE_TRAUMA">رضوض العمود الفقري والنخاع الشوكي (Spinal Trauma & SCI)</option>
+                                <option value="SPINE_NON_TRAUMA">أمراض العمود الفقري غير الرضية والتنكسية (Spine Pathology)</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block font-semibold text-slate-600 mb-1">التشخيص النوعي الدقيق *</label>
+                            <select id="subCategory" class="w-full border rounded-xl p-2 bg-slate-50">
+                                <option value="">-- يرجى اختيار المحور الرئيسي أولاً --</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div id="dynamicSpecialtyFields" class="bg-slate-50 p-3.5 rounded-2xl border border-slate-200 space-y-3 hidden">
+                        <div class="font-bold text-slate-700">المعايير التخصصية ومقاييس التقييم:</div>
+                        <div id="dynamicFieldsContainer" class="grid grid-cols-1 sm:grid-cols-3 gap-3"></div>
+                    </div>
+
+                    <div class="mt-3">
+                        <label class="block font-semibold text-slate-600 mb-1">تفاصيل القصة المرضية والموجودات الشعاعية (CT / MRI)</label>
+                        <textarea id="diagnosisDetails" rows="2" class="w-full border rounded-xl p-2 bg-slate-50 focus:bg-white" placeholder="جهة الإصابة، التوضع التشريحي، درجة الانزياح، قياس الآفة..."></textarea>
+                    </div>
+                </div>
+
+                <!-- 4. اللزوم الدوائي مع عداد الأيام -->
+                <div class="border-b border-slate-200 pb-5">
+                    <div class="flex justify-between items-center mb-3">
+                        <h4 class="font-black text-blue-700 flex items-center gap-1.5 text-xs sm:text-sm">
+                            <span>💊</span> 4. اللزوم الدوائي التخصصي (مع عداد أيام العلاج)
+                        </h4>
+                        <button type="button" onclick="window.addMedicationRow()" class="bg-blue-600 hover:bg-blue-500 text-white px-3 py-1 rounded-lg font-bold text-xs shadow transition">
+                            + إضافة دواء
+                        </button>
+                    </div>
+                    <div id="medicationsList" class="space-y-2 mb-3"></div>
+                    <textarea id="medicationNotes" rows="2" class="w-full border rounded-xl p-2 bg-slate-50 text-xs" placeholder="تعليمات المحاليل الوريدية، تصحيح الشوارد، وجداول السحب التدريجي..."></textarea>
+                </div>
+
+                <!-- 5. الجراحة والباثولوجي والاستشارات -->
+                <div class="border-b border-slate-200 pb-5">
+                    <h4 class="font-black text-blue-700 mb-3 flex items-center gap-1.5 text-xs sm:text-sm">
+                        <span>🔪</span> 5. العمل الجراحي، التشريح المرضي، والاستشارات
+                    </h4>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 mb-4">
+                        <div>
+                            <label class="block font-semibold text-slate-600 mb-1">الجراح المشرف / القائم بالجراحة</label>
+                            <input type="text" id="surgeon" class="w-full border rounded-xl p-2 bg-slate-50" placeholder="اسم الجراح">
+                        </div>
+                        <div class="sm:col-span-2">
+                            <label class="block font-semibold text-slate-600 mb-1">موجز العمل الجراحي (Brief Operative Note)</label>
+                            <textarea id="operativeNote" rows="2" class="w-full border rounded-xl p-2 bg-slate-50" placeholder="المدخل الجراحي، كفاية الاستئصال (GTR/STR)، تثبيت الفقرات، النزف المقدر..."></textarea>
+                        </div>
+                        <div class="sm:col-span-3">
+                            <label class="block font-semibold text-slate-600 mb-1">التشريح المرضي النسيجي (Histopathology Report)</label>
+                            <textarea id="pathologyReport" rows="2" class="w-full border rounded-xl p-2 bg-slate-50" placeholder="النمط النسيجي، درجة الورم WHO Grade، الواسمات الجزيئية..."></textarea>
+                        </div>
+                    </div>
+
+                    <div class="bg-slate-50 p-3.5 rounded-2xl border border-slate-200">
+                        <div class="flex justify-between items-center mb-2">
+                            <label class="font-bold text-slate-700">🩺 الاستشارات التخصصية المنجزة والمطلوبة:</label>
+                            <button type="button" onclick="window.addConsultationRow()" class="text-xs bg-purple-100 hover:bg-purple-200 text-purple-800 font-bold px-2.5 py-1 rounded-lg transition">
+                                + إضافة استشارة جديدة
+                            </button>
+                        </div>
+                        <div id="consultationsContainer" class="space-y-2"></div>
+                    </div>
+                </div>
+
+                <!-- 6. المهام والتوصيات اليومية للشطب -->
+                <div>
+                    <h4 class="font-black text-blue-700 mb-3 flex items-center gap-1.5 text-xs sm:text-sm">
+                        <span>📋</span> 6. مهام وتوصيات الجولة اليومية للأطباء (To-Do List تفاعلية)
+                    </h4>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div class="bg-amber-50/50 p-3.5 rounded-2xl border border-amber-200">
+                            <div class="flex justify-between items-center mb-2">
+                                <span class="font-black text-amber-900 flex items-center gap-1">☀️ توصيات المرور الصباحي:</span>
+                                <button type="button" onclick="window.addTaskRow('morning')" class="text-xs bg-amber-200/70 hover:bg-amber-200 text-amber-900 font-bold px-2 py-0.5 rounded-md">+ مهمة</button>
+                            </div>
+                            <div id="morningTasksContainer" class="space-y-1.5"></div>
+                        </div>
+                        <div class="bg-indigo-50/50 p-3.5 rounded-2xl border border-indigo-200">
+                            <div class="flex justify-between items-center mb-2">
+                                <span class="font-black text-indigo-900 flex items-center gap-1">🌙 توصيات المرور المسائي والمناوبة:</span>
+                                <button type="button" onclick="window.addTaskRow('evening')" class="text-xs bg-indigo-200/70 hover:bg-indigo-200 text-indigo-900 font-bold px-2 py-0.5 rounded-md">+ مهمة</button>
+                            </div>
+                            <div id="eveningTasksContainer" class="space-y-1.5"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- شريط أزرار الحفظ والإلغاء مع زر الحذف المدمج -->
+                <div class="flex justify-between items-center gap-2 pt-4 border-t border-slate-200">
+                    <button type="button" id="modalDeleteBtn" onclick="window.deleteCurrentPatientFromModal()" class="px-3.5 py-2 bg-rose-50 hover:bg-rose-100 text-rose-600 border border-rose-200 rounded-xl font-bold text-xs transition flex items-center gap-1">
+                        <span>🗑️</span> حذف هذا المريض نهائياً
+                    </button>
+                    <div class="flex gap-2">
+                        <button type="button" onclick="window.closePatientModal()" class="px-4 py-2 border rounded-xl text-slate-600 hover:bg-slate-100 font-bold transition">إلغاء</button>
+                        <button type="submit" id="saveBtn" class="px-6 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-xl font-bold shadow-lg shadow-blue-600/30 transition">حفظ ومزامنة الحالة</button>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- نافذة التخريج والأرشفة -->
+    <div id="dischargeModal" class="fixed inset-0 bg-slate-950/70 backdrop-blur-sm z-50 flex items-center justify-center hidden p-4">
+        <div class="bg-white rounded-3xl shadow-2xl w-full max-w-lg p-6 border border-slate-200">
+            <h3 class="text-base font-black text-slate-800 mb-2 flex items-center gap-2"><span>📦</span> تخريج المريض وأرشفة السجل</h3>
+            <p class="text-xs text-slate-500 mb-4">سيتم نقل المريض من الجولة اليومية إلى الأرشيف الدائم مع الاحتفاظ بكافة بياناته وسجلاته للمراجعة.</p>
+            <form id="dischargeForm" onsubmit="window.confirmDischargeForm(event)" class="space-y-3 text-xs sm:text-sm">
+                <input type="hidden" id="dischargeDocId">
+                <div>
+                    <label class="block font-semibold text-slate-600 mb-1">تاريخ ووقت التخريج</label>
+                    <input type="datetime-local" id="dischargeDate" required class="w-full border rounded-xl p-2 bg-slate-50">
+                </div>
+                <div>
+                    <label class="block font-semibold text-slate-600 mb-1">مآل التخريج السريري</label>
+                    <select id="dischargeOutcome" class="w-full border rounded-xl p-2 bg-slate-50">
+                        <option value="شفاء وتحسن سريري للمنزل">شفاء وتحسن سريري للمنزل</option>
+                        <option value="نقل إلى مشفى أو مركز تخصصي آخر">نقل إلى مشفى أو مركز تخصصي آخر</option>
+                        <option value="خروج على مسؤولية الأهل الشخصية (DAMA)">خروج على مسؤولية الأهل الشخصية (DAMA)</option>
+                        <option value="وفاة سريرية (Morbidity/Mortality)">وفاة سريرية (Morbidity/Mortality)</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block font-semibold text-slate-600 mb-1">ملخص التخريج والتعليمات المنزلية</label>
+                    <textarea id="dischargeSummary" rows="3" required class="w-full border rounded-xl p-2 bg-slate-50" placeholder="الحالة العصبية عند الخروج، الخطة الدوائية المنزلية، موعد فك القطب والمراجعة..."></textarea>
+                </div>
+                <div class="flex justify-end gap-2 pt-2">
+                    <button type="button" onclick="window.closeDischargeModal()" class="px-4 py-2 border rounded-xl text-slate-600 font-bold">إلغاء</button>
+                    <button type="submit" class="px-5 py-2 bg-rose-600 hover:bg-rose-500 text-white rounded-xl font-bold shadow">تأكيد التخريج</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- كاشف الأخطاء البرمجية العالمي للواجهة -->
+    <script>
+        window.showDiagnostic = function(err) {
+            console.error("Clinical System Diagnostic:", err);
+            const banner = document.getElementById('diagnosticBanner');
+            const msg = document.getElementById('diagnosticMessage');
+            if (banner && msg) {
+                const text = typeof err === 'object' ? (err.stack || `${err.name || 'Error'}: ${err.message || JSON.stringify(err)}`) : String(err);
+                msg.textContent = text;
+                banner.classList.remove('hidden');
+            }
+        };
+
+        window.onerror = function(message, source, lineno, colno, error) {
+            window.showDiagnostic(`[Line ${lineno}:${colno}] ${message}`);
+            return false;
+        };
+
+        window.onunhandledrejection = function(e) {
+            window.showDiagnostic(`[Unhandled Promise] ${e.reason ? (e.reason.stack || e.reason.message || e.reason) : e}`);
+        };
+    </script>
+
+    <!-- وحدة الاتصال الرسمية بـ Firebase مع التحقق الكامل والمزامنة -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.9.0/firebase-app.js";
+        import { getAuth, signInWithEmailAndPassword, onAuthStateChanged, signOut, setPersistence, browserLocalPersistence } from "https://www.gstatic.com/firebasejs/10.9.0/firebase-auth.js";
+        import { getFirestore, collection, onSnapshot, doc, setDoc, deleteDoc, updateDoc, enableIndexedDbPersistence } from "https://www.gstatic.com/firebasejs/10.9.0/firebase-firestore.js";
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyDUMA9GVkUdQBTWsinPFICauxFSuINrq_Y",
+            authDomain: "neurosurgery-rounds.firebaseapp.com",
+            projectId: "neurosurgery-rounds",
+            storageBucket: "neurosurgery-rounds.firebasestorage.app",
+            messagingSenderId: "221459774267",
+            appId: "1:221459774267:web:f240ec4d6fe84f8192551e"
+        };
+
+        let app, auth, db;
+        try {
+            app = initializeApp(firebaseConfig);
+            auth = getAuth(app);
+            db = getFirestore(app);
+            setPersistence(auth, browserLocalPersistence).catch(e => console.warn("Persistence Error:", e));
+            enableIndexedDbPersistence(db).catch(e => console.warn("IndexedDb Persistence Warning:", e.code));
+        } catch (initErr) {
+            window.showDiagnostic(initErr);
+        }
+
+        window.activePatients = [];
+        window.archivedPatients = [];
+        window.currentTab = 'active';
+
+        const neuroCategories = {
+            TBI: {
+                title: "رضوض الدماغ والجمجمة",
+                sub: [
+                    "نزف حاد فوق الجافية (Acute Epidural Hematoma - EDH)",
+                    "نزف حاد تحت الجافية (Acute Subdural Hematoma - ASDH)",
+                    "نزف مزمن/تحت حاد تحت الجافية (Chronic Subdural - CSDH)",
+                    "كدمات دماغية رضية ووذمة دماغية منتشرة (Cerebral Contusions)",
+                    "نزف رضي تحت العنكبوتية (Traumatic Subarachnoid - tSAH)",
+                    "أذية محورية منتشرة (Diffuse Axonal Injury - DAI)",
+                    "كسر جمجمة منخسف مفتوح/مغلق (Depressed Skull Fracture)",
+                    "كسر قاع الجمجمة مع سيلان CSF أنفي أو أذني (Skull Base Fracture)"
+                ],
+                fields: [
+                    { id: 'gcs', label: 'مقياس غلاسكو للوعي (GCS)', type: 'select', options: ['GCS 13-15 (إصابة خفيفة)', 'GCS 9-12 (إصابة متوسطة)', 'GCS 3-8 (إصابة دماغية شديدة)'] },
+                    { id: 'pupils', label: 'فحص الحدقتين والمنعكس الضيائي', type: 'select', options: ['حدقتان متساويتان ومتفاعلتان', 'توسع وحيد الجانب كليل التفاعل', 'حدقة متوسعة ثابتة (Anisocoria)', 'توسع حدقتين ثنائي الجانب وثابت'] },
+                    { id: 'ctScore', label: 'تصنيف الطبقي (Marshall / Rotterdam)', type: 'text', placeholder: 'مثال: Marshall Grade III مع انزياح 5mm' }
+                ]
+            },
+            BRAIN_NON_TRAUMA: {
+                title: "أمراض الدماغ غير الرضية والأورام",
+                sub: [
+                    "أورام دبقية عالية الدرجة (High-Grade Glioma / Glioblastoma)",
+                    "أورام دبقية منخفضة الدرجة (Low-Grade Glioma)",
+                    "أورام سحائية (Meningioma)",
+                    "نقائل دماغية ثانوية (Brain Metastases)",
+                    "أورام الغدة النخامية ومنطقة السرج (Pituitary Adenoma)",
+                    "نزف عفوي تحت العنكبوتية / أم دم دماغية (Aneurysmal SAH)",
+                    "تشوهات شريانية وريدية وتشوهات كهفية (AVM / Cavernoma)",
+                    "نزف دماغي مفرط التوتر الشرياني (Hypertensive ICH)",
+                    "موه الرأس وتوسع البطينات (Hydrocephalus / NPH)",
+                    "إنتانات عصبية وخراجات دماغية (Brain Abscess / Subdural Empyema)"
+                ],
+                fields: [
+                    { id: 'whoGrade', label: 'التصنيف النسيجي للورم (WHO CNS5)', type: 'select', options: ['غير ورمي / آفة سليمة', 'Grade 1', 'Grade 2', 'Grade 3', 'Grade 4'] },
+                    { id: 'huntHess', label: 'تصنيف Hunt & Hess / Fisher (للنزف)', type: 'text', placeholder: 'مثال: Hunt & Hess II / Fisher 3' },
+                    { id: 'evansIndex', label: 'مشعر إيفانز لموه الرأس (Evans Index)', type: 'text', placeholder: 'مثال: 0.35 مع وذمة حول البطينات' }
+                ]
+            },
+            SPINE_TRAUMA: {
+                title: "رضوض العمود الفقري والنخاع الشوكي",
+                sub: [
+                    "خلع وتحت خلع فقري رقبي (Cervical Subluxation / Facet Dislocation)",
+                    "كسر الفقرات الرقبية العلوية C1-C2 (Odontoid / Hangman Fracture)",
+                    "كسور الصدر والقطن الانفجارية (Thoracolumbar Burst Fractures)",
+                    "أذية نخاع شوكي حادة كاملة / غير كاملة (Acute SCI)",
+                    "أذية النخاع دون كسر عظمي شعاعي (SCIWORA)"
+                ],
+                fields: [
+                    { id: 'asiaScale', label: 'المقياس العصبي للأذية (ASIA Impairment)', type: 'select', options: ['ASIA A (شلل كامل حركي وحسي)', 'ASIA B (حسي جزئي دون حركة)', 'ASIA C (حركي أقل من 3/5)', 'ASIA D (حركي فوق 3/5 وظيفي)', 'ASIA E (فحص عصبي سليم)'] },
+                    { id: 'tlicsScore', label: 'معيار استقرار الفقرات (TLICS / AOSpine)', type: 'text', placeholder: 'مثال: TLICS = 5 (استطباب جراحي للتثبيت)' },
+                    { id: 'motorLevel', label: 'المستوى العصبي الحركي المصاب (Neurological Level)', type: 'text', placeholder: 'مثال: C6 أو L1' }
+                ]
+            },
+            SPINE_NON_TRAUMA: {
+                title: "أمراض العمود الفقري غير الرضية والتنكسية",
+                sub: [
+                    "فتق نواة لبية قطني وجذري (Lumbar Disc Herniation / Radiculopathy)",
+                    "فتق نواة لبية رقبي مع اعتلال نخاعي (Cervical Myelopathy / Radiculopathy)",
+                    "تضيق القناة الشوكية التنكسي (Lumbar / Cervical Spinal Stenosis)",
+                    "انزلاق فقاري تنكسي / ولادي (Spondylolisthesis)",
+                    "أورام العمود الفقري والنقائل العظمية (Spinal Metastases)",
+                    "أورام داخل الجافية نخاعية وخارج النخاع (Intradural Tumors)",
+                    "التهاب الفقار والقرص الخمجي (Spondylodiscitis / Epidural Abscess)"
+                ],
+                fields: [
+                    { id: 'spondylolisthesisGrade', label: 'درجة الانزلاق الفقاري (Meyerding Grade)', type: 'select', options: ['لا يوجد انزلاق', 'Grade 1 (1-25%)', 'Grade 2 (26-50%)', 'Grade 3 (51-75%)', 'Grade 4 (>75%)'] },
+                    { id: 'sinsScore', label: 'مشعر استقرار الأورام الشوكية (SINS Score)', type: 'text', placeholder: 'مثال: SINS = 9 (غير مستقر وظيفياً)' },
+                    { id: 'neuroDeficit', label: 'العجز العصبي والوظيفي المرافق', type: 'text', placeholder: 'مثال: هبوط قدم L5، عسر مشي تشنجي' }
+                ]
+            }
+        };
+
+        const presetMedicationsList = [
+            { name: "Mannitol 20%", dose: "100 ml", route: "IV", freq: "كل 6 ساعات" },
+            { name: "Dexamethasone", dose: "4 mg", route: "IV", freq: "كل 8 ساعات" },
+            { name: "Levetiracetam (Keppra)", dose: "500 mg", route: "IV/PO", freq: "كل 12 ساعة" },
+            { name: "Ceftriaxone", dose: "2 g", route: "IV", freq: "كل 12 ساعة" },
+            { name: "Vancomycin", dose: "1 g", route: "IV", freq: "كل 12 ساعة" },
+            { name: "Paracetamol", dose: "1 g", route: "IV", freq: "عند اللزوم / كل 8 ساعات" },
+            { name: "Enoxaparin (Clexane)", dose: "40 mg", route: "SC", freq: "يومياً" },
+            { name: "Pantoprazole", dose: "40 mg", route: "IV", freq: "يومياً صباحاً" },
+            { name: "Gabapentin", dose: "300 mg", route: "PO", freq: "مساءً" }
+        ];
+
+        // مراقبة الدخول
+        onAuthStateChanged(auth, (user) => {
+            const loginScreen = document.getElementById('loginScreen');
+            const appContainer = document.getElementById('appContainer');
+
+            if (user) {
+                loginScreen.classList.add('hidden');
+                appContainer.classList.remove('hidden');
+                initRealtimeSync();
+            } else {
+                loginScreen.classList.remove('hidden');
+                appContainer.classList.add('hidden');
+            }
+        });
+
+        window.handleLoginSubmit = async function(e) {
+            e.preventDefault();
+            const btn = document.getElementById('loginBtn');
+            const errDiv = document.getElementById('loginError');
+            btn.disabled = true;
+            btn.textContent = "جارِ التحقق من الاعتماد...";
+            errDiv.classList.add('hidden');
+
+            const email = document.getElementById('loginEmail').value.trim();
+            const password = document.getElementById('loginPassword').value;
+
+            try {
+                await signInWithEmailAndPassword(auth, email, password);
+            } catch (err) {
+                console.error(err);
+                btn.disabled = false;
+                btn.textContent = "تسجيل الدخول إلى الجولة";
+                errDiv.classList.remove('hidden');
+                errDiv.textContent = `فشل (${err.code}): تأكد من صحة البريد وكلمة المرور.`;
+                window.showDiagnostic(err);
+            }
+        };
+
+        window.handleLogoutAction = async function() {
+            if (confirm("هل ترغب بتسجيل الخروج من نظام الجولة؟")) {
+                try {
+                    await signOut(auth);
+                } catch (err) {
+                    window.showDiagnostic(err);
+                }
+            }
+        };
+
+        // استماع لقاعدة البيانات
+        function initRealtimeSync() {
+            const syncDot = document.getElementById('syncDot');
+            const syncText = document.getElementById('syncText');
+
+            try {
+                onSnapshot(collection(db, "ns_active_patients"), (snapshot) => {
+                    window.activePatients = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+                    document.getElementById('activeCount').textContent = window.activePatients.length;
+                    syncDot.className = "w-2.5 h-2.5 rounded-full bg-emerald-500";
+                    syncText.textContent = "متزامن لحظياً";
+                    if (window.currentTab === 'active') window.renderPatients();
+                }, (err) => {
+                    syncDot.className = "w-2.5 h-2.5 rounded-full bg-rose-500";
+                    syncText.textContent = "خطأ بالمزامنة";
+                    window.showDiagnostic(err);
+                });
+
+                onSnapshot(collection(db, "ns_archived_patients"), (snapshot) => {
+                    window.archivedPatients = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+                    document.getElementById('archiveCount').textContent = window.archivedPatients.length;
+                    if (window.currentTab === 'archive') window.renderPatients();
+                }, (err) => {
+                    window.showDiagnostic(err);
+                });
+            } catch (err) {
+                window.showDiagnostic(err);
+            }
+        }
+
+        // عمليات الحفظ والحذف
+        window.saveActivePatientDB = async function(id, data) {
+            const ref = id ? doc(db, "ns_active_patients", id) : doc(collection(db, "ns_active_patients"));
+            await setDoc(ref, { ...data, updatedAt: new Date().toISOString() }, { merge: true });
+        };
+
+        window.deletePatientDB = async function(id, isArchived) {
+            const colName = isArchived ? "ns_archived_patients" : "ns_active_patients";
+            await deleteDoc(doc(db, colName, id));
+        };
+
+        window.archivePatientDB = async function(id, patientData, dischargeInfo) {
+            await setDoc(doc(db, "ns_archived_patients", id), {
+                ...patientData,
+                dischargeInfo,
+                archivedAt: new Date().toISOString()
+            });
+            await deleteDoc(doc(db, "ns_active_patients", id));
+        };
+
+        window.restorePatientDB = async function(patient) {
+            const id = patient.id;
+            const restored = { ...patient };
+            delete restored.dischargeInfo;
+            delete restored.archivedAt;
+            await setDoc(doc(db, "ns_active_patients", id), restored);
+            await deleteDoc(doc(db, "ns_archived_patients", id));
+        };
+
+        window.toggleTaskDB = async function(patientId, roundType, taskIndex, currentStatus) {
+            const pRef = doc(db, "ns_active_patients", patientId);
+            const patient = window.activePatients.find(p => p.id === patientId);
+            if (!patient) return;
+            const fieldName = roundType === 'morning' ? 'morningTasks' : 'eveningTasks';
+            const tasks = [...(patient[fieldName] || [])];
+            if (tasks[taskIndex]) {
+                tasks[taskIndex].done = !currentStatus;
+                await updateDoc(pRef, { [fieldName]: tasks, updatedAt: new Date().toISOString() });
+            }
+        };
+
+        // التبديل بين التبويبات
+        window.switchTab = function(tab) {
+            window.currentTab = tab;
+            const activeBtn = document.getElementById('tabActiveBtn');
+            const archiveBtn = document.getElementById('tabArchiveBtn');
+
+            if (tab === 'active') {
+                activeBtn.className = "px-3 py-1.5 rounded-lg text-xs sm:text-sm font-bold bg-blue-600 text-white transition";
+                archiveBtn.className = "px-3 py-1.5 rounded-lg text-xs sm:text-sm font-bold bg-slate-800 text-slate-300 hover:bg-slate-700 transition";
+            } else {
+                archiveBtn.className = "px-3 py-1.5 rounded-lg text-xs sm:text-sm font-bold bg-blue-600 text-white transition";
+                activeBtn.className = "px-3 py-1.5 rounded-lg text-xs sm:text-sm font-bold bg-slate-800 text-slate-300 hover:bg-slate-700 transition";
+            }
+            window.renderPatients();
+        };
+
+        function calculateDaysFrom(dateStr) {
+            if (!dateStr) return 1;
+            const past = new Date(dateStr);
+            const now = new Date();
+            const diff = Math.floor((now - past) / (1000 * 60 * 60 * 24));
+            return diff >= 0 ? diff + 1 : 1;
+        }
+
+        // رسم بطاقات المرضى في الواجهة
+        window.renderPatients = function() {
+            try {
+                const container = document.getElementById('patientsGrid');
+                const emptyState = document.getElementById('emptyState');
+                const query = (document.getElementById('searchInput').value || '').trim().toLowerCase();
+                const catFilter = document.getElementById('filterCategory').value;
+
+                const isArchived = (window.currentTab === 'archive');
+                const list = isArchived ? window.archivedPatients : window.activePatients;
+
+                const filtered = list.filter(p => {
+                    const matchQuery = (
+                        (p.name && p.name.toLowerCase().includes(query)) ||
+                        (p.room && p.room.toLowerCase().includes(query)) ||
+                        (p.fileNo && p.fileNo.toLowerCase().includes(query)) ||
+                        (p.subCategory && p.subCategory.toLowerCase().includes(query)) ||
+                        (p.transferredFrom && p.transferredFrom.toLowerCase().includes(query))
+                    );
+                    const matchCat = catFilter === 'ALL' || p.mainCategory === catFilter;
+                    return matchQuery && matchCat;
+                });
+
+                container.innerHTML = '';
+                if (filtered.length === 0) {
+                    emptyState.classList.remove('hidden');
+                    return;
+                }
+                emptyState.classList.add('hidden');
+
+                filtered.forEach(p => {
+                    const stayDays = calculateDaysFrom(p.admissionDate);
+                    const card = document.createElement('div');
+                    card.className = "bg-white rounded-3xl border border-slate-200/80 shadow-sm hover:shadow-md transition p-4 flex flex-col justify-between print-full";
+
+                    let medsHtml = '';
+                    if (p.medications && p.medications.length > 0) {
+                        medsHtml = p.medications.map(m => {
+                            const mDays = calculateDaysFrom(m.startDate);
+                            return `
+                                <li class="flex items-center justify-between py-1 border-b border-slate-100 last:border-0 text-xs">
+                                    <div>
+                                        <span class="font-bold text-slate-800">${m.name}</span>
+                                        <span class="text-slate-500 text-[11px]">(${m.dose} - ${m.freq})</span>
+                                    </div>
+                                    <span class="bg-blue-50 text-blue-700 font-extrabold text-[10px] px-2 py-0.5 rounded-full border border-blue-200">
+                                        اليوم ${mDays}
+                                    </span>
+                                </li>
+                            `;
+                        }).join('');
+                    } else {
+                        medsHtml = '<li class="text-slate-400 italic text-xs py-1">لا توجد أدوية مسجلة حالياً</li>';
+                    }
+
+                    let dynBadges = '';
+                    if (p.dynamicValues) {
+                        for (const [k, v] of Object.entries(p.dynamicValues)) {
+                            if (v) dynBadges += `<span class="bg-blue-50 text-blue-800 text-[11px] font-bold px-2 py-0.5 rounded-lg border border-blue-200">${v}</span> `;
+                        }
+                    }
+
+                    let consultsHtml = '';
+                    if (p.consultationsList && p.consultationsList.length > 0) {
+                        consultsHtml = p.consultationsList.map(c => `
+                            <div class="bg-purple-50/70 border border-purple-200 p-2 rounded-xl text-xs space-y-0.5">
+                                <span class="font-black text-purple-900 block">${c.title || 'استشارة طبية'}:</span>
+                                <span class="text-slate-700">${c.body || ''}</span>
+                            </div>
+                        `).join('');
+                    }
+
+                    const renderTasks = (tasks, type) => {
+                        if (!tasks || tasks.length === 0) return '<span class="text-slate-400 italic text-[11px]">لا توجد توصيات</span>';
+                        return tasks.map((t, idx) => `
+                            <div class="flex items-center gap-2 text-xs py-0.5">
+                                <input type="checkbox" ${t.done ? 'checked' : ''} onchange="window.handleToggleTask('${p.id}', '${type}', ${idx}, ${t.done})" class="w-3.5 h-3.5 rounded text-blue-600 cursor-pointer">
+                                <span class="${t.done ? 'line-through-task' : 'text-slate-800'}">${t.text}</span>
+                            </div>
+                        `).join('');
+                    };
+
+                    card.innerHTML = `
+                        <div>
+                            <div class="flex justify-between items-start pb-2.5 border-b border-slate-100">
+                                <div>
+                                    <span class="bg-slate-900 text-white font-black text-xs px-2.5 py-1 rounded-lg">غرفة: ${p.room || '-'}</span>
+                                    <span class="bg-blue-100 text-blue-800 font-extrabold text-xs px-2.5 py-1 rounded-lg mr-1">يوم الإقامة ${stayDays}</span>
+                                </div>
+                                <span class="text-xs text-slate-400">إضبارة: <strong class="text-slate-700">${p.fileNo}</strong></span>
+                            </div>
+
+                            <div class="my-2.5">
+                                <h3 class="text-base font-black text-slate-900">${p.name} <span class="text-xs font-normal text-slate-500">(${p.age} سنة / ${p.gender || '-'})</span></h3>
+                                <div class="flex flex-wrap items-center gap-1.5 mt-1">
+                                    <span class="text-xs text-slate-500">📍 ${p.residence || 'غير محدد'}</span>
+                                    ${p.isTransferred ? `<span class="bg-amber-100 text-amber-900 text-[10px] font-bold px-2 py-0.5 rounded-full border border-amber-300">منقول من: ${p.transferredFrom || 'شعبة أخرى'}</span>` : ''}
+                                    ${p.allergies ? `<span class="bg-rose-100 text-rose-800 text-[10px] font-bold px-2 py-0.5 rounded-full border border-rose-300">⚠️ ${p.allergies}</span>` : ''}
+                                </div>
+                            </div>
+
+                            ${p.vitalBP || p.vitalPulse || (p.vitalDrain && p.vitalDrainType !== 'لا يوجد مفجر') ? `
+                                <div class="bg-slate-50 border border-slate-200 p-2 rounded-xl mb-3 flex flex-wrap items-center justify-between text-xs gap-2">
+                                    <div><span class="text-slate-500">BP:</span> <strong class="text-slate-800">${p.vitalBP || '-'}</strong></div>
+                                    <div><span class="text-slate-500">HR:</span> <strong class="text-slate-800">${p.vitalPulse || '-'}</strong></div>
+                                    <div><span class="text-slate-500">المفجر:</span> <strong class="text-blue-700">${p.vitalDrain || '0 ml'} (${p.vitalDrainType || 'مدمى'})</strong></div>
+                                </div>
+                            ` : ''}
+
+                            <div class="bg-slate-50 p-2.5 rounded-2xl border border-slate-100 mb-3">
+                                <div class="text-xs font-black text-blue-700">${p.subCategory || p.mainCategory || 'تشخيص عصبي'}</div>
+                                <div class="flex flex-wrap gap-1 mt-1.5">${dynBadges}</div>
+                                ${p.diagnosisDetails ? `<p class="text-xs text-slate-600 mt-1.5 bg-white p-2 rounded-xl border border-slate-100">${p.diagnosisDetails}</p>` : ''}
+                            </div>
+
+                            ${p.surgeon || p.operativeNote ? `
+                                <div class="mb-3 text-xs bg-emerald-50/70 border border-emerald-200 p-2.5 rounded-2xl">
+                                    <span class="font-black text-emerald-900">🔪 الجراحة (${p.surgeon || 'غير محدد'}):</span>
+                                    <p class="text-slate-700 mt-0.5">${p.operativeNote || 'لا يوجد ملخص جراحي'}</p>
+                                    ${p.pathologyReport ? `<p class="mt-1 text-slate-600 border-t border-emerald-200/60 pt-1">🔬 <strong>باثولوجي:</strong> ${p.pathologyReport}</p>` : ''}
+                                </div>
+                            ` : ''}
+
+                            <div class="mb-3">
+                                <h5 class="text-xs font-black text-slate-700 mb-1 flex items-center gap-1"><span>💊</span> الخطة الدوائية:</h5>
+                                <ul class="bg-slate-50 p-2 rounded-2xl border border-slate-100 divide-y divide-slate-100">${medsHtml}</ul>
+                                ${p.medicationNotes ? `<p class="text-[11px] text-slate-500 mt-1 px-1">ملاحظات: ${p.medicationNotes}</p>` : ''}
+                            </div>
+
+                            <div class="space-y-2 mb-3">
+                                <div class="bg-amber-50/70 border border-amber-200 p-2.5 rounded-2xl">
+                                    <span class="font-black text-amber-900 block text-xs mb-1">☀️ مهام المرور الصباحي:</span>
+                                    <div class="space-y-1">${renderTasks(p.morningTasks, 'morning')}</div>
+                                </div>
+                                <div class="bg-indigo-50/70 border border-indigo-200 p-2.5 rounded-2xl">
+                                    <span class="font-black text-indigo-900 block text-xs mb-1">🌙 مهام المرور المسائي:</span>
+                                    <div class="space-y-1">${renderTasks(p.eveningTasks, 'evening')}</div>
+                                </div>
+                            </div>
+
+                            ${consultsHtml ? `
+                                <div class="mb-3 space-y-1.5">
+                                    <h5 class="text-xs font-black text-purple-900">🩺 الاستشارات التخصصية:</h5>
+                                    ${consultsHtml}
+                                </div>
+                            ` : ''}
+
+                            ${isArchived && p.dischargeInfo ? `
+                                <div class="bg-rose-50 border border-rose-200 p-2.5 rounded-2xl text-xs mt-2">
+                                    <div class="font-black text-rose-900">📦 بيانات التخريج (${p.dischargeInfo.outcome}):</div>
+                                    <div class="text-slate-700 mt-1">${p.dischargeInfo.summary}</div>
+                                </div>
+                            ` : ''}
+                        </div>
+
+                        <!-- شريط الأزرار الواضح مع زر الحذف المباشر -->
+                        <div class="pt-3 border-t border-slate-100 flex justify-between items-center gap-2 no-print">
+                            <button type="button" onclick="window.confirmDeletePatient('${p.id}', '${(p.name || '').replace(/'/g, "\\'")}', ${isArchived})" class="px-3 py-1.5 bg-rose-50 hover:bg-rose-100 text-rose-600 border border-rose-200 rounded-xl text-xs font-bold transition flex items-center gap-1" title="حذف نهائي">
+                                <span>🗑️</span> حذف
+                            </button>
+                            <div class="flex gap-2">
+                                ${!isArchived ? `
+                                    <button type="button" onclick="window.editPatientById('${p.id}')" class="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold transition">تعديل الحالة</button>
+                                    <button type="button" onclick="window.openDischargeModal('${p.id}')" class="px-3 py-1.5 bg-amber-50 hover:bg-amber-100 text-amber-700 border border-amber-200 rounded-xl text-xs font-bold transition">تخريج وأرشفة</button>
+                                ` : `
+                                    <button type="button" onclick="window.restorePatientById('${p.id}')" class="px-3 py-1.5 bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 rounded-xl text-xs font-bold transition">استعادة للجولة النشطة</button>
+                                `}
+                            </div>
+                        </div>
+                    `;
+                    container.appendChild(card);
+                });
+            } catch (renderErr) {
+                window.showDiagnostic(renderErr);
+            }
+        };
+
+        window.handleToggleTask = async function(pId, rType, tIdx, status) {
+            try {
+                await window.toggleTaskDB(pId, rType, tIdx, status);
+            } catch (err) {
+                window.showDiagnostic(err);
+            }
+        };
+
+        window.confirmDeletePatient = async function(id, name, isArchived) {
+            const listType = isArchived ? "الأرشيف" : "قائمة المقيمين";
+            if (confirm(`تحذير نهائي: هل أنت متأكد من حذف المريض (${name}) نهائياً من ${listType}؟ لن تتمكن من استعادة البيانات.`)) {
+                try {
+                    await window.deletePatientDB(id, isArchived);
+                } catch (err) {
+                    window.showDiagnostic(err);
+                }
+            }
+        };
+
+        window.deleteCurrentPatientFromModal = async function() {
+            const docId = document.getElementById('patientDocId').value;
+            const name = document.getElementById('patientName').value;
+            const isArch = (window.currentTab === 'archive');
+            if (!docId) return;
+            if (confirm(`تحذير نهائي: هل أنت متأكد من حذف المريض (${name}) نهائياً؟`)) {
+                try {
+                    await window.deletePatientDB(docId, isArch);
+                    window.closePatientModal();
+                } catch (err) {
+                    window.showDiagnostic(err);
+                }
+            }
+        };
+
+        window.toggleTransferredDetails = function() {
+            const isChecked = document.getElementById('isTransferred').checked;
+            const box = document.getElementById('transferredBox');
+            if (isChecked) box.classList.remove('hidden');
+            else {
+                box.classList.add('hidden');
+                document.getElementById('transferredFrom').value = '';
+            }
+        };
+
+        window.handleCategoryChange = function(selectedSub = null, dynamicValues = {}) {
+            const cat = document.getElementById('mainCategory').value;
+            const subSelect = document.getElementById('subCategory');
+            const dynamicBox = document.getElementById('dynamicSpecialtyFields');
+            const dynamicContainer = document.getElementById('dynamicFieldsContainer');
+
+            subSelect.innerHTML = '<option value="">-- اختر التشخيص النوعي الدقيق --</option>';
+            dynamicContainer.innerHTML = '';
+
+            if (cat && neuroCategories[cat]) {
+                neuroCategories[cat].sub.forEach(s => {
+                    const opt = document.createElement('option');
+                    opt.value = s;
+                    opt.textContent = s;
+                    if (s === selectedSub) opt.selected = true;
+                    subSelect.appendChild(opt);
+                });
+
+                neuroCategories[cat].fields.forEach(f => {
+                    const div = document.createElement('div');
+                    let inputHtml = '';
+                    const curVal = dynamicValues[f.id] || '';
+
+                    if (f.type === 'select') {
+                        const opts = f.options.map(o => `<option value="${o}" ${o === curVal ? 'selected' : ''}>${o}</option>`).join('');
+                        inputHtml = `<select id="dyn_${f.id}" class="w-full border rounded-xl p-2 text-xs bg-white focus:ring-1 focus:ring-blue-500">${opts}</select>`;
+                    } else {
+                        inputHtml = `<input type="text" id="dyn_${f.id}" value="${curVal}" placeholder="${f.placeholder || ''}" class="w-full border rounded-xl p-2 text-xs bg-white focus:ring-1 focus:ring-blue-500">`;
+                    }
+
+                    div.innerHTML = `<label class="block text-xs font-semibold text-slate-700 mb-1">${f.label}</label>${inputHtml}`;
+                    dynamicContainer.appendChild(div);
+                });
+
+                dynamicBox.classList.remove('hidden');
+            } else {
+                dynamicBox.classList.add('hidden');
+            }
+        };
+
+        window.addMedicationRow = function(data = null) {
+            const container = document.getElementById('medicationsList');
+            const row = document.createElement('div');
+            row.className = "flex flex-wrap items-center gap-2 bg-slate-50 p-2 rounded-xl border border-slate-200";
+
+            const now = new Date();
+            const todayStr = now.toISOString().slice(0, 10);
+
+            const mName = data ? data.name : '';
+            const mDose = data ? data.dose : '';
+            const mFreq = data ? data.freq : '';
+            const mDate = data ? data.startDate : todayStr;
+
+            const options = presetMedicationsList.map(p => `<option value="${p.name}|${p.dose}|${p.route}|${p.freq}">${p.name} - ${p.dose}</option>`).join('');
+
+            row.innerHTML = `
+                <div class="w-full sm:w-auto">
+                    <select class="med-preset-select w-full sm:w-36 border border-slate-300 rounded-lg p-1 text-[11px] bg-white">
+                        <option value="">-- نموذج جاهز --</option>
+                        ${options}
+                    </select>
+                </div>
+                <input type="text" placeholder="اسم الدواء (يدوياً)" value="${mName}" class="med-name flex-1 min-w-[120px] border border-slate-300 rounded-lg p-1 text-xs bg-white">
+                <input type="text" placeholder="الجرعة وطريقة الإعطاء" value="${mDose}" class="med-dose w-28 border border-slate-300 rounded-lg p-1 text-xs bg-white">
+                <input type="text" placeholder="التكرار" value="${mFreq}" class="med-freq w-24 border border-slate-300 rounded-lg p-1 text-xs bg-white">
+                <div class="flex items-center gap-1">
+                    <span class="text-[10px] text-slate-500">البدء:</span>
+                    <input type="date" value="${mDate}" class="med-date border border-slate-300 rounded-lg p-0.5 text-xs bg-white">
+                </div>
+                <button type="button" onclick="this.parentElement.remove()" class="text-rose-500 hover:text-rose-700 font-bold px-1.5 text-base">&times;</button>
+            `;
+
+            row.querySelector('.med-preset-select').addEventListener('change', (e) => {
+                if (!e.target.value) return;
+                const [name, dose, route, freq] = e.target.value.split('|');
+                row.querySelector('.med-name').value = name;
+                row.querySelector('.med-dose').value = `${dose} ${route}`;
+                row.querySelector('.med-freq').value = freq;
+            });
+
+            container.appendChild(row);
+        };
+
+        window.addConsultationRow = function(data = null) {
+            const container = document.getElementById('consultationsContainer');
+            const card = document.createElement('div');
+            card.className = "bg-white p-2.5 rounded-xl border border-purple-200 space-y-1.5 shadow-sm";
+
+            const title = data ? data.title : '';
+            const body = data ? data.body : '';
+
+            card.innerHTML = `
+                <div class="flex justify-between items-center gap-2">
+                    <input type="text" placeholder="عنوان الاستشارة (مثال: قلبية، عناية مشددة...)" value="${title}" class="consult-title font-bold text-purple-900 border-b border-purple-200 p-1 text-xs w-full focus:outline-none">
+                    <button type="button" onclick="this.closest('.bg-white').remove()" class="text-rose-500 hover:text-rose-700 font-bold px-1">&times;</button>
+                </div>
+                <textarea rows="2" placeholder="نص الاستشارة وخلاصتها..." class="consult-body w-full border border-slate-200 rounded-lg p-1.5 text-xs bg-slate-50 focus:bg-white">${body}</textarea>
+            `;
+            container.appendChild(card);
+        };
+
+        window.addTaskRow = function(roundType, taskData = null) {
+            const containerId = roundType === 'morning' ? 'morningTasksContainer' : 'eveningTasksContainer';
+            const container = document.getElementById(containerId);
+            const row = document.createElement('div');
+            row.className = "flex items-center gap-2 bg-white p-1.5 rounded-lg border border-slate-200";
+
+            const taskText = typeof taskData === 'string' ? taskData : (taskData ? taskData.text : '');
+            const isDone = taskData && taskData.done ? true : false;
+
+            row.innerHTML = `
+                <input type="checkbox" ${isDone ? 'checked' : ''} class="task-checkbox w-4 h-4 rounded text-blue-600 cursor-pointer">
+                <input type="text" value="${taskText}" placeholder="المهمة (طلب فحص، CT مراقبة...)" class="task-text flex-1 text-xs border-0 focus:ring-0 p-0 bg-transparent ${isDone ? 'line-through-task' : ''}">
+                <button type="button" onclick="this.parentElement.remove()" class="text-slate-400 hover:text-rose-600 text-sm font-bold px-1">&times;</button>
+            `;
+
+            const cb = row.querySelector('.task-checkbox');
+            const txt = row.querySelector('.task-text');
+            cb.addEventListener('change', () => {
+                if (cb.checked) txt.classList.add('line-through-task');
+                else txt.classList.remove('line-through-task');
+            });
+
+            container.appendChild(row);
+        };
+
+        window.openPatientModal = function(data = null) {
+            document.getElementById('patientForm').reset();
+            document.getElementById('medicationsList').innerHTML = '';
+            document.getElementById('consultationsContainer').innerHTML = '';
+            document.getElementById('morningTasksContainer').innerHTML = '';
+            document.getElementById('eveningTasksContainer').innerHTML = '';
+            document.getElementById('patientDocId').value = data ? data.id : '';
+            document.getElementById('modalTitle').textContent = data ? "تحديث بيانات الحالة وتوصيات الجولة" : "إضافة مريض جديد للجولة اليومية";
+
+            const modalDeleteBtn = document.getElementById('modalDeleteBtn');
+
+            if (data) {
+                modalDeleteBtn.classList.remove('hidden');
+                document.getElementById('roomNo').value = data.room || '';
+                document.getElementById('patientName').value = data.name || '';
+                document.getElementById('age').value = data.age || '';
+                document.getElementById('gender').value = data.gender || 'ذكر';
+                document.getElementById('residence').value = data.residence || '';
+                document.getElementById('fileNo').value = data.fileNo || '';
+                document.getElementById('admissionDate').value = data.admissionDate || '';
+                document.getElementById('allergies').value = data.allergies || '';
+                
+                document.getElementById('vitalBP').value = data.vitalBP || '';
+                document.getElementById('vitalPulse').value = data.vitalPulse || '';
+                document.getElementById('vitalDrain').value = data.vitalDrain || '';
+                document.getElementById('vitalDrainType').value = data.vitalDrainType || 'لا يوجد مفجر';
+
+                document.getElementById('isTransferred').checked = data.isTransferred || false;
+                document.getElementById('transferredFrom').value = data.transferredFrom || '';
+                window.toggleTransferredDetails();
+
+                document.getElementById('mainCategory').value = data.mainCategory || '';
+                window.handleCategoryChange(data.subCategory, data.dynamicValues || {});
+
+                document.getElementById('diagnosisDetails').value = data.diagnosisDetails || '';
+                document.getElementById('medicationNotes').value = data.medicationNotes || '';
+                document.getElementById('surgeon').value = data.surgeon || '';
+                document.getElementById('operativeNote').value = data.operativeNote || '';
+                document.getElementById('pathologyReport').value = data.pathologyReport || '';
+
+                if (data.medications && data.medications.length) {
+                    data.medications.forEach(m => window.addMedicationRow(m));
+                }
+                if (data.consultationsList && data.consultationsList.length) {
+                    data.consultationsList.forEach(c => window.addConsultationRow(c));
+                }
+                if (data.morningTasks && data.morningTasks.length) {
+                    data.morningTasks.forEach(t => window.addTaskRow('morning', t));
+                }
+                if (data.eveningTasks && data.eveningTasks.length) {
+                    data.eveningTasks.forEach(t => window.addTaskRow('evening', t));
+                }
+            } else {
+                modalDeleteBtn.classList.add('hidden');
+                const now = new Date();
+                now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
+                document.getElementById('admissionDate').value = now.toISOString().slice(0, 16);
+                window.toggleTransferredDetails();
+                window.handleCategoryChange();
+                window.addMedicationRow();
+                window.addTaskRow('morning', { text: '', done: false });
+                window.addTaskRow('evening', { text: '', done: false });
+            }
+
+            document.getElementById('patientModal').classList.remove('hidden');
+        };
+
+        window.closePatientModal = function() {
+            document.getElementById('patientModal').classList.add('hidden');
+        };
+
+        window.editPatientById = function(id) {
+            const p = window.activePatients.find(x => x.id === id);
+            if (p) window.openPatientModal(p);
+        };
+
+        window.savePatientForm = async function(e) {
+            e.preventDefault();
+            const btn = document.getElementById('saveBtn');
+            btn.disabled = true;
+            btn.textContent = "جارِ المزامنة والحفظ...";
+
+            const docId = document.getElementById('patientDocId').value;
+            const mainCat = document.getElementById('mainCategory').value;
+
+            const medRows = document.querySelectorAll('#medicationsList .flex-wrap');
+            const medications = Array.from(medRows).map(row => {
+                const name = row.querySelector('.med-name').value.trim();
+                const dose = row.querySelector('.med-dose').value.trim();
+                const freq = row.querySelector('.med-freq').value.trim();
+                const startDate = row.querySelector('.med-date').value;
+                return name ? { name, dose, freq, startDate } : null;
+            }).filter(Boolean);
+
+            const consultCards = document.querySelectorAll('#consultationsContainer .bg-white');
+            const consultationsList = Array.from(consultCards).map(card => {
+                const title = card.querySelector('.consult-title').value.trim();
+                const body = card.querySelector('.consult-body').value.trim();
+                return title || body ? { title, body } : null;
+            }).filter(Boolean);
+
+            const morningTaskRows = document.querySelectorAll('#morningTasksContainer .flex');
+            const morningTasks = Array.from(morningTaskRows).map(row => {
+                const text = row.querySelector('.task-text').value.trim();
+                const done = row.querySelector('.task-checkbox').checked;
+                return text ? { text, done } : null;
+            }).filter(Boolean);
+
+            const eveningTaskRows = document.querySelectorAll('#eveningTasksContainer .flex');
+            const eveningTasks = Array.from(eveningTaskRows).map(row => {
+                const text = row.querySelector('.task-text').value.trim();
+                const done = row.querySelector('.task-checkbox').checked;
+                return text ? { text, done } : null;
+            }).filter(Boolean);
+
+            const dynamicValues = {};
+            if (mainCat && neuroCategories[mainCat]) {
+                neuroCategories[mainCat].fields.forEach(f => {
+                    const el = document.getElementById(`dyn_${f.id}`);
+                    if (el) dynamicValues[f.id] = el.value;
+                });
+            }
+
+            const payload = {
+                room: document.getElementById('roomNo').value,
+                name: document.getElementById('patientName').value,
+                age: document.getElementById('age').value,
+                gender: document.getElementById('gender').value,
+                residence: document.getElementById('residence').value,
+                fileNo: document.getElementById('fileNo').value,
+                admissionDate: document.getElementById('admissionDate').value,
+                allergies: document.getElementById('allergies').value,
+                vitalBP: document.getElementById('vitalBP').value,
+                vitalPulse: document.getElementById('vitalPulse').value,
+                vitalDrain: document.getElementById('vitalDrain').value,
+                vitalDrainType: document.getElementById('vitalDrainType').value,
+                isTransferred: document.getElementById('isTransferred').checked,
+                transferredFrom: document.getElementById('transferredFrom').value,
+                mainCategory: mainCat,
+                subCategory: document.getElementById('subCategory').value,
+                dynamicValues,
+                diagnosisDetails: document.getElementById('diagnosisDetails').value,
+                medications,
+                medicationNotes: document.getElementById('medicationNotes').value,
+                surgeon: document.getElementById('surgeon').value,
+                operativeNote: document.getElementById('operativeNote').value,
+                pathologyReport: document.getElementById('pathologyReport').value,
+                consultationsList,
+                morningTasks,
+                eveningTasks
+            };
+
+            try {
+                await window.saveActivePatientDB(docId, payload);
+                window.closePatientModal();
+            } catch (err) {
+                window.showDiagnostic(err);
+            } finally {
+                btn.disabled = false;
+                btn.textContent = "حفظ ومزامنة الحالة";
+            }
+        };
+
+        window.openDischargeModal = function(id) {
+            document.getElementById('dischargeForm').reset();
+            document.getElementById('dischargeDocId').value = id;
+            const now = new Date();
+            now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
+            document.getElementById('dischargeDate').value = now.toISOString().slice(0, 16);
+            document.getElementById('dischargeModal').classList.remove('hidden');
+        };
+
+        window.closeDischargeModal = function() {
+            document.getElementById('dischargeModal').classList.add('hidden');
+        };
+
+        window.confirmDischargeForm = async function(e) {
+            e.preventDefault();
+            const id = document.getElementById('dischargeDocId').value;
+            const patient = window.activePatients.find(p => p.id === id);
+            if (!patient) return;
+
+            const dischargeInfo = {
+                date: document.getElementById('dischargeDate').value,
+                outcome: document.getElementById('dischargeOutcome').value,
+                summary: document.getElementById('dischargeSummary').value
+            };
+
+            try {
+                await window.archivePatientDB(id, patient, dischargeInfo);
+                window.closeDischargeModal();
+            } catch (err) {
+                window.showDiagnostic(err);
+            }
+        };
+
+        window.restorePatientById = async function(id) {
+            const patient = window.archivedPatients.find(p => p.id === id);
+            if (!patient) return;
+            if (confirm(`هل تريد استعادة المريض (${patient.name}) إلى قائمة المقيمين بالجولة؟`)) {
+                try {
+                    await window.restorePatientDB(patient);
+                } catch (err) {
+                    window.showDiagnostic(err);
+                }
+            }
+        };
+
+        window.exportWardToCSV = function() {
+            const list = (window.currentTab === 'active') ? window.activePatients : window.archivedPatients;
+            if (list.length === 0) {
+                alert("لا توجد بيانات لتصديرها.");
+                return;
+            }
+
+            let csvContent = "\uFEFFالغرفة,الاسم,العمر,الجنس,رقم الإضبارة,تاريخ الدخول,التشخيص,الجراح,الضغط,النبض,المفجر\n";
+            list.forEach(p => {
+                const row = [
+                    `"${p.room || ''}"`,
+                    `"${p.name || ''}"`,
+                    `"${p.age || ''}"`,
+                    `"${p.gender || ''}"`,
+                    `"${p.fileNo || ''}"`,
+                    `"${p.admissionDate || ''}"`,
+                    `"${(p.subCategory || p.mainCategory || '').replace(/"/g, '""')}"`,
+                    `"${p.surgeon || ''}"`,
+                    `"${p.vitalBP || ''}"`,
+                    `"${p.vitalPulse || ''}"`,
+                    `"${p.vitalDrain ? p.vitalDrain + ' (' + (p.vitalDrainType || '') + ')' : ''}"`
+                ];
+                csvContent += row.join(",") + "\n";
+            });
+
+            const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement("a");
+            link.setAttribute("href", url);
+            link.setAttribute("download", `شعبة_الجراحة_العصبية_الجولة_${new Date().toISOString().slice(0, 10)}.csv`);
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        };
+    </script>
+</body>
+</html>
