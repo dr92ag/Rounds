@@ -442,6 +442,10 @@
                 await setDoc(doc(db, "ns_active_patients", id), restored);
                 await deleteDoc(doc(db, "ns_archived_patients", id));
             }
+            deletePatient: async (id, isArchived) => {
+                const colName = isArchived ? "ns_archived_patients" : "ns_active_patients";
+                await deleteDoc(doc(db, colName, id));
+            },
         };
     </script>
 
@@ -703,6 +707,16 @@
             });
 
             container.appendChild(row);
+        } 
+        async function deletePatient(id, name, isArchived) {
+            const listType = isArchived ? "الأرشيف" : "قائمة المقيمين";
+            if (confirm(`تحذير: هل أنت متأكد من حذف المريض (${name}) نهائياً من ${listType}؟ لن تتمكن من استعادة البيانات بعد ذلك.`)) {
+                try {
+                    await window.dbMethods.deletePatient(id, isArchived);
+                } catch (err) {
+                    alert("تعذر حذف المريض: " + err.message);
+                }
+            }
         }
 
         function switchTab(tab) {
@@ -886,15 +900,19 @@
                             </div>
                         ` : ''}
                     </div>
-
-                    <!-- أزرار الإجراءات السفلية -->
-                    <div class="pt-3 border-t border-slate-100 flex justify-end gap-2 no-print">
-                        ${!isArchived ? `
-                            <button onclick="editPatient('${p.id}')" class="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold transition">تعديل الحالة</button>
-                            <button onclick="openDischargeModal('${p.id}')" class="px-3 py-1.5 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 rounded-xl text-xs font-bold transition">تخريج وأرشفة</button>
-                        ` : `
-                            <button onclick="restorePatient('${p.id}')" class="px-3 py-1.5 bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 rounded-xl text-xs font-bold transition">استعادة للجولة النشطة</button>
-                        `}
+<!-- أزرار الإجراءات السفلية مع زر الحذف -->
+                    <div class="pt-3 border-t border-slate-100 flex justify-between items-center gap-2 no-print">
+                        <button onclick="deletePatient('${p.id}', '${p.name}', ${isArchived})" class="px-2.5 py-1.5 bg-rose-50 hover:bg-rose-100 text-rose-600 border border-rose-200 rounded-xl text-xs font-bold transition flex items-center gap-1" title="حذف نهائي">
+                            <span>🗑️</span> حذف
+                        </button>
+                        <div class="flex gap-2">
+                            ${!isArchived ? `
+                                <button onclick="editPatient('${p.id}')" class="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold transition">تعديل الحالة</button>
+                                <button onclick="openDischargeModal('${p.id}')" class="px-3 py-1.5 bg-amber-50 hover:bg-amber-100 text-amber-700 border border-amber-200 rounded-xl text-xs font-bold transition">تخريج وأرشفة</button>
+                            ` : `
+                                <button onclick="restorePatient('${p.id}')" class="px-3 py-1.5 bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 rounded-xl text-xs font-bold transition">استعادة للجولة النشطة</button>
+                            `}
+                        </div>
                     </div>
                 `;
                 container.appendChild(card);
